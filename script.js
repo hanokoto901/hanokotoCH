@@ -195,19 +195,34 @@ document.addEventListener('DOMContentLoaded', () => {
 	// 各タブに検索機能を適用
 	tabContents.forEach(initializeSearch);
 
+	// 年表用「上部に戻る」ボタンを安全に隠すヘルパー
+	const hideBackToTableTop = () => {
+		const btn = document.querySelector('.back-to-table-top');
+		if (btn) btn.classList.remove('show');
+	};
+
+	// アクティブな年表スクロール要素取得（重複クエリ削減）
+	const getActiveTable = () => document.querySelector('.tab-content.active .table-responsive');
+
 	// ナビゲーションリンクの処理
 	const showSection = (sectionId) => {
+		// 追加: メニュー切替時に年表用ボタンを必ず非表示に
+		hideBackToTableTop();
+
 		sections.forEach(section => section.classList.remove('active'));
 		
 		navLinks.forEach(link => {
 			if (link.dataset.section === sectionId) {
 				link.style.background = '#f0f0f0';
+				link.setAttribute('aria-current', 'page');
 			} else {
 				link.style.background = '';
+				link.removeAttribute('aria-current');
 			}
 		});
 
 		const homeSectionEl = document.querySelector('.home-section');
+		const videosSectionEl = document.getElementById('videos');
 
 		if (sectionId === 'home') {
 			// ホーム表示
@@ -217,6 +232,23 @@ document.addEventListener('DOMContentLoaded', () => {
 			const current = Array.from(tabs).findIndex(t => t.classList.contains('active'));
 			const idx = current >= 0 ? current : 0;
 			activateTab(idx, { focus: false });
+		} else if (sectionId === 'videos') {
+			// 動画紹介表示
+			if (homeSectionEl) homeSectionEl.classList.remove('active');
+			if (tabsContainer) tabsContainer.style.display = 'none';
+			if (searchBarsContainer) searchBarsContainer.style.display = 'none';
+			tabContents.forEach(content => content.style.display = 'none');
+			if (videosSectionEl) videosSectionEl.classList.add('active');
+
+			// 追加: 表示直後にわずかにスクロールして矢印を有効化
+			requestAnimationFrame(() => {
+				document.querySelectorAll('.videos-carousel-wrapper .videos-carousel').forEach(c => {
+					if (c.scrollWidth > c.clientWidth) {
+						c.scrollTo({ left: Math.max(2, c.scrollLeft) });
+						c.dispatchEvent(new Event('scroll'));
+					}
+				});
+			});
 		} else {
 			// 他セクション表示
 			if (homeSectionEl) homeSectionEl.classList.remove('active');
@@ -254,6 +286,154 @@ document.addEventListener('DOMContentLoaded', () => {
 		const current = Array.from(tabs).findIndex(t => t.classList.contains('active'));
 		updateIndicator(current >= 0 ? current : 0);
 	};
-	window.addEventListener('resize', syncCurrentIndicator);
-	if (tabsContainer) tabsContainer.addEventListener('scroll', syncCurrentIndicator);
+	let resizeRaf = null;
+	window.addEventListener('resize', () => {
+		if (resizeRaf) return;
+		resizeRaf = requestAnimationFrame(() => {
+			syncCurrentIndicator();
+			resizeRaf = null;
+		});
+	});
+	if (tabsContainer) tabsContainer.addEventListener('scroll', syncCurrentIndicator, { passive: true });
+
+	// トップへ戻るボタン（ページ全体用）
+	const backToTop = document.createElement('button');
+	backToTop.className = 'back-to-top';
+	backToTop.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+	backToTop.setAttribute('aria-label', 'ページトップへ戻る');
+	document.body.appendChild(backToTop);
+
+	// トップへ戻るボタン（年表用）
+	const backToTableTop = document.createElement('button');
+	backToTableTop.className = 'back-to-table-top';
+	backToTableTop.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+	backToTableTop.setAttribute('aria-label', '年表トップへ戻る');
+	document.body.appendChild(backToTableTop);
+
+	// ページ全体のスクロール監視
+	const toggleBackToTop = () => {
+		if (window.scrollY > 300) {
+			backToTop.classList.add('show');
+		} else {
+			backToTop.classList.remove('show');
+		}
+	};
+
+	// 年表のスクロール監視
+	const toggleBackToTableTop = () => {
+		const activeTable = document.querySelector('.tab-content.active .table-responsive');
+		const tableScroll = activeTable ? activeTable.scrollTop : 0;
+		
+		if (tableScroll > 300) {
+			backToTableTop.classList.add('show');
+		} else {
+			backToTableTop.classList.remove('show');
+		}
+	};
+
+	// ページ全体トップへ戻る
+	backToTop.addEventListener('click', () => {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	});
+
+	// 年表トップへ戻る
+	backToTableTop.addEventListener('click', () => {
+		const activeTable = getActiveTable();
+		if (activeTable) {
+			activeTable.scrollTo({ top: 0, behavior: 'smooth' });
+		}
+	});
+
+	// ページスクロールを監視（受動でパフォーマンス向上）
+	window.addEventListener('scroll', toggleBackToTop, { passive: true });
+	
+	// 各年表のスクロールを監視（受動）
+	document.querySelectorAll('.table-responsive').forEach(table => {
+		table.addEventListener('scroll', toggleBackToTableTop, { passive: true });
+	});
+
+	// 動画カルーセルのスクロール機能
+	document.querySelectorAll('.videos-carousel-wrapper').forEach(wrapper => {
+		const carousel = wrapper.querySelector('.videos-carousel');
+		const prevBtn = wrapper.querySelector('.carousel-btn.prev');
+		const nextBtn = wrapper.querySelector('.carousel-btn.next');
+		
+		if (!carousel || !prevBtn || !nextBtn) return;
+		
+		const scrollAmount = 300; // 1回のスクロール量
+		
+		prevBtn.addEventListener('click', () => {
+			carousel.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+		});
+		
+		nextBtn.addEventListener('click', () => {
+			carousel.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+		});
+		
+		// ボタンの有効/無効を制御
+		const updateButtons = () => {
+			const { scrollLeft, scrollWidth, clientWidth } = carousel;
+			const isAtStart = scrollLeft <= 1;
+			const isAtEnd = scrollLeft >= scrollWidth - clientWidth - 1;
+			prevBtn.disabled = isAtStart;
+			nextBtn.disabled = isAtEnd;
+		};
+		
+		carousel.addEventListener('scroll', updateButtons);
+		window.addEventListener('resize', updateButtons);
+		updateButtons(); // 初期状態を設定
+
+		// 追加: 初期化直後にわずかにスクロールして前へボタンを有効化
+		requestAnimationFrame(() => {
+			if (carousel.scrollWidth > carousel.clientWidth) {
+				carousel.scrollTo({ left: 2 });
+				updateButtons();
+			}
+		});
+	});
+
+	// ハンバーガーメニューの制御（モバイル用）
+	const menuToggle = document.createElement('button');
+	menuToggle.className = 'menu-toggle';
+	menuToggle.setAttribute('aria-label', 'メニューを開く');
+	menuToggle.innerHTML = '<span></span><span></span><span></span>';
+	
+	const headerLeft = document.querySelector('.header-left');
+	const headerNav = document.querySelector('.header-nav');
+	
+	if (headerLeft && headerNav) {
+		headerLeft.appendChild(menuToggle);
+		
+		menuToggle.addEventListener('click', () => {
+			const isOpen = headerNav.classList.toggle('open');
+			menuToggle.classList.toggle('active');
+			menuToggle.setAttribute('aria-label', isOpen ? 'メニューを閉じる' : 'メニューを開く');
+			menuToggle.setAttribute('aria-expanded', isOpen);
+		});
+		
+		// メニューリンククリック時に自動で閉じる
+		navLinks.forEach(link => {
+			link.addEventListener('click', () => {
+				if (window.innerWidth <= 768) {
+					headerNav.classList.remove('open');
+					menuToggle.classList.remove('active');
+					menuToggle.setAttribute('aria-label', 'メニューを開く');
+					menuToggle.setAttribute('aria-expanded', 'false');
+				}
+			});
+		});
+		
+		// 画面外タップでメニューを閉じる
+		document.addEventListener('click', (e) => {
+			if (window.innerWidth <= 768 && 
+			    headerNav.classList.contains('open') &&
+			    !headerNav.contains(e.target) &&
+			    !menuToggle.contains(e.target)) {
+				headerNav.classList.remove('open');
+				menuToggle.classList.remove('active');
+				menuToggle.setAttribute('aria-label', 'メニューを開く');
+				menuToggle.setAttribute('aria-expanded', 'false');
+			}
+		});
+	}
 });
