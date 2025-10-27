@@ -209,9 +209,6 @@ body {
     align-items: center;
     gap: 6px;
 }
-.tab .tab-label::before {
-    content: attr(data-label-full); /* デフォルトは完全名 */
-}
 .tab .tab-badge {
     display: inline-flex;
     align-items: center;
@@ -225,6 +222,14 @@ body {
     line-height: 1;
     color: #fff;
     background: rgba(0,0,0,0.25); /* 背景色に依存せず視認可能 */
+}
+
+/* タブラベルの短縮表示用（モバイル） */
+.tab .tab-text-full {
+    display: inline;
+}
+.tab .tab-text-short {
+    display: none;
 }
 
 /* はのこと・ハコリリ: 集約（重複削除） */
@@ -804,6 +809,12 @@ p {
     .fit {
         padding-left: 4px;
         padding-right: 4px;
+        width: auto; /* 追加: コンテンツ幅に自動調整 */
+        max-width: none; /* 追加: 最大幅制限を解除 */
+    }
+    .fix {
+        width: auto; /* 変更: 25% → auto コンテンツ幅優先 */
+        min-width: 80px; /* 追加: 最小幅を設定して潰れ防止 */
     }
 
     /* 検索バーのフォントサイズ */
@@ -871,15 +882,24 @@ p {
         min-height: 36px; /* 変更: 40px → 36px */
     }
 
+    /* タブラベルの短縮表示 */
+    .tab .tab-text-full {
+        display: none;
+    }
+    .tab .tab-text-short {
+        display: inline;
+    }
+
     /* テーブル内容領域の高さ調整 */
     .table-responsive {
         max-height: calc(100vh - 200px);
-        width: 100%; /* 追加: ビューポート幅に合わせる */
-        overflow-x: auto; /* 追加: 横スクロール明示 */
+        width: 100%;
+        overflow-x: auto;
     }
     .table-responsive table {
-        min-width: auto; /* 変更: 600px → auto コンテンツ幅優先 */
-        width: max-content; /* 追加: 内容に応じた幅 */
+        min-width: auto;
+        width: max-content; /* 各列の内容に応じた幅 */
+        table-layout: auto; /* 追加: 自動レイアウトで列幅を内容に合わせる */
     }
 
     /* Googleフォームボタンの余白圧縮 */
@@ -968,7 +988,6 @@ p {
         left: 0;
         right: 0;
         background: var(--bg-white);
-        border-bottom: 1px solid var(--border-light);
         flex-direction: column;
         gap: 0;
         padding: 0;
@@ -1118,11 +1137,6 @@ p {
         padding: 5px 9px;
     }
 
-    /* タブラベルをモバイル用短縮名に */
-    .tab .tab-label::before {
-        content: attr(data-label-short); /* モバイル時は短縮名 */
-    }
-
     /* タブ密度調整（行間・幅をコンパクトに） */
     :root {
         --tab-padding-y: 6px;   /* 8px → 6px */
@@ -1150,12 +1164,16 @@ p {
     th, td {
         font-size: 9px;
         padding: 3px 5px;
+        white-space: normal; /* 追加: 長い内容は改行可能に */
+        word-break: break-word; /* 追加: 単語の途中でも改行 */
     }
     .fit {
         padding-left: 3px;
         padding-right: 3px;
+        white-space: nowrap; /* 維持: 年・月は改行させない */
     }
 
+    /* フッター */
     .site-footer {
         padding: var(--space-4) var(--space-2);
         font-size: 12px;
@@ -1182,7 +1200,6 @@ p {
 #thanks li::before {
     content: none;
 }
-/* Thanksセクションの分類見出し */
 #thanks h3 {
     margin-top: 20px;
     margin-bottom: 10px;
