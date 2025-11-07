@@ -2,11 +2,11 @@ name: Generate HTML
 
 on:
   schedule:
-    - cron: "0 0 * * *"  # 毎日 00:00（UTC）
+    - cron: "0 0 * * *"  # 毎日0時（UTC）
   workflow_dispatch:
 
 permissions:
-  contents: write   # ← ← ← ココが重要！（書き込み権限）
+  contents: write  # ← push許可
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # 認証付きでcheckout
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,12 +33,47 @@ jobs:
           python Y_generate.py
 
       - name: Commit and push changes
+        id: commit
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
           git add index.html
-          git diff --quiet && echo "No changes to commit" || git commit -m "Auto-update HTML $(date '+%Y-%m-%d %H:%M')"
-          git pull --rebase origin main
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "Auto-update HTML $(date '+%Y-%m-%d %H:%M')"
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Discord Embed notification (only if changed)
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
+          REPO_URL="https://github.com/${{ github.repository }}"
+          MESSAGE=$(jq -n \
+            --arg title "index.html が更新されました！" \
+            --arg desc "PythonスクリプトによってHTMLが自動更新されました。" \
+            --arg repo "$REPO_URL" \
+            --arg time "$TIMESTAMP" \
+            --arg color "5814783" \
+            '{
+              "username": "HTML更新通知",
+              "embeds": [{
+                "title": $title,
+                "description": $desc,
+                "color": ($color | tonumber),
+                "fields": [
+                  {"name": "📄 リポジトリ", "value": $repo, "inline": false},
+                  {"name": "🕒 更新時刻", "value": $time, "inline": true}
+                ],
+                "footer": {"text": "GitHub Actions Bot"}
+              }]
+            }')
+          echo "$MESSAGE" | jq .
+          curl -H "Content-Type: application/json" -X POST -d "$MESSAGE" $DISCORD_WEBHOOK
