@@ -223,6 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		const homeSectionEl = document.querySelector('.home-section');
 		const videosSectionEl = document.getElementById('videos');
+		// 追加: 歌みた紹介セクション取得
+		const coversSectionEl = document.getElementById('covers');
 
 		if (sectionId === 'home') {
 			// ホーム表示
@@ -241,6 +243,22 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (videosSectionEl) videosSectionEl.classList.add('active');
 
 			// 追加: 表示直後にわずかにスクロールして矢印を有効化
+			requestAnimationFrame(() => {
+				document.querySelectorAll('.videos-carousel-wrapper .videos-carousel').forEach(c => {
+					if (c.scrollWidth > c.clientWidth) {
+						c.scrollTo({ left: Math.max(2, c.scrollLeft) });
+						c.dispatchEvent(new Event('scroll'));
+					}
+				});
+			});
+		} else if (sectionId === 'covers') {
+			// 追加: 歌みた紹介表示（動画紹介と同様の挙動）
+			if (homeSectionEl) homeSectionEl.classList.remove('active');
+			if (tabsContainer) tabsContainer.style.display = 'none';
+			if (searchBarsContainer) searchBarsContainer.style.display = 'none';
+			tabContents.forEach(content => content.style.display = 'none');
+			if (coversSectionEl) coversSectionEl.classList.add('active');
+
 			requestAnimationFrame(() => {
 				document.querySelectorAll('.videos-carousel-wrapper .videos-carousel').forEach(c => {
 					if (c.scrollWidth > c.clientWidth) {
