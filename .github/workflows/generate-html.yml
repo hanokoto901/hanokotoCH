@@ -34,7 +34,11 @@ jobs:
           set -euo pipefail
           pip install --upgrade pip
           pip install requests
-
+      - name: Install jq
+        run: |
+            set -euo pipefail
+            sudo apt-get update -y
+            sudo apt-get install -y jq
       - name: Generate HTML
         run: |
           set -euo pipefail
@@ -64,11 +68,9 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
-          sudo apt-get update -y
-          sudo apt-get install -y jq
           TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
           OWNER="${GITHUB_REPOSITORY%%/*}"
-          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+            REPO_NAME="${GITHUB_REPOSITORY#*/}"
           SITE_URL="https://${OWNER}.github.io/${REPO_NAME}"
           MESSAGE=$(jq -n \
             --arg title "サイトが正常に更新されました！" \
@@ -83,6 +85,41 @@ jobs:
                 "fields": [
                   {"name": "🔗 サイトのリンク", "value": $site, "inline": false},
                   {"name": "🕒 更新日時", "value": $time, "inline": true}
+                ],
+                "footer": {"text": "GitHub Actions Bot"}
+              }]
+            }')
+          echo "$MESSAGE" | jq .
+          curl -H "Content-Type: application/json" -X POST -d "$MESSAGE" $DISCORD_WEBHOOK
+      - name: Send Discord Failure notification
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          SITE_URL="https://${OWNER}.github.io/${REPO_NAME}"
+          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          SHA_SHORT=$(echo "${GITHUB_SHA}" | cut -c1-8)
+          MESSAGE=$(jq -n \
+            --arg title "サイトの更新に失敗しました" \
+            --arg site "$SITE_URL" \
+            --arg time "$TIMESTAMP" \
+            --arg run "$RUN_URL" \
+            --arg sha "$SHA_SHORT" \
+            --arg color "16711680" \
+            '{
+              "username": "HTML更新通知",
+              "embeds": [{
+                "title": $title,
+                "color": ($color | tonumber),
+                "fields": [
+                  {"name": "🔗 サイトのリンク", "value": $site, "inline": false},
+                  {"name": "🧪 ワークフロー実行", "value": $run, "inline": false},
+                  {"name": "🧬 コミット", "value": $sha, "inline": true},
+                  {"name": "🕒 失敗検知時刻", "value": $time, "inline": true}
                 ],
                 "footer": {"text": "GitHub Actions Bot"}
               }]
