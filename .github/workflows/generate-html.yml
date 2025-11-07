@@ -38,7 +38,7 @@ jobs:
       - name: Generate HTML
         run: |
           set -euo pipefail
-          python Y_generate.py
+          python generate.py
 
       - name: Commit and push changes
         id: commit
