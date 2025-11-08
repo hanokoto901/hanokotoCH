@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "0 15 * * *"  # 毎日0時（JST）※GitHubはUTC基準。JST 00:00 = UTC 15:00
   workflow_dispatch:
+  push:
+    branches:
+      - main  # デバッグ用: mainへのpushでも実行
 
 permissions:
   contents: write  # ← push許可
@@ -56,9 +59,10 @@ jobs:
           git add index.html
           if git diff --cached --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected"
           else
             git commit -m "Auto-update HTML $(date '+%Y-%m-%d %H:%M')"
-            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+            git push origin main
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
