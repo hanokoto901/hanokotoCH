@@ -2,10 +2,9 @@ name: Generate HTML
 
 on:
   schedule:
-    - cron: "0 15 * * *"  # 毎日0時（JST）※GitHubはUTC基準。JST 00:00 = UTC 15:00
+    - cron: "0 15 * * *"  # 毎日0時（JST）※UTC 15:00 = JST 00:00
+    - cron: "0 3 * * *"   # 毎日12時（JST）※UTC 03:00 = JST 12:00
   workflow_dispatch:
-  push:
-    branches: [main]  # テスト用: mainブランチへのコミット時に起動
 
 permissions:
   contents: write
