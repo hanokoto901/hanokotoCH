@@ -5,11 +5,10 @@ on:
     - cron: "0 15 * * *"  # 毎日0時（JST）※GitHubはUTC基準。JST 00:00 = UTC 15:00
   workflow_dispatch:
   push:
-    branches:
-      - main  # デバッグ用: mainへのpushでも実行
+    branches: [main]  # テスト用: mainブランチへのコミット時に起動
 
 permissions:
-  contents: write  # ← push許可
+  contents: write
 
 concurrency:
   group: generate-html
@@ -37,11 +36,9 @@ jobs:
           set -euo pipefail
           pip install --upgrade pip
           pip install requests
-      - name: Install jq
-        run: |
-            set -euo pipefail
-            sudo apt-get update -y
-            sudo apt-get install -y jq
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+
       - name: Generate HTML
         run: |
           set -euo pipefail
@@ -55,27 +52,31 @@ jobs:
           set -euo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
           git add index.html
           if git diff --cached --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
-            echo "No changes detected"
           else
             git commit -m "Auto-update HTML $(date '+%Y-%m-%d %H:%M')"
-            git push origin main
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Send Discord Embed notification (only if changed)
+      - name: Set common environment variables
+        if: always()
+        run: |
+          echo "TIMESTAMP=$(date '+%Y-%m-%d %H:%M')" >> $GITHUB_ENV
+          echo "OWNER=${GITHUB_REPOSITORY%%/*}" >> $GITHUB_ENV
+          echo "REPO_NAME=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
+          echo "SITE_URL=https://${GITHUB_REPOSITORY%%/*}.github.io/${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
+          echo "RUN_URL=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> $GITHUB_ENV
+          echo "SHA_SHORT=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
+
+      - name: Send Discord success notification
         if: steps.commit.outputs.changed == 'true'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
-          TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
-          OWNER="${GITHUB_REPOSITORY%%/*}"
-            REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          SITE_URL="https://${OWNER}.github.io/${REPO_NAME}"
           MESSAGE=$(jq -n \
             --arg title "サイトが正常に更新されました！" \
             --arg site "$SITE_URL" \
@@ -93,20 +94,14 @@ jobs:
                 "footer": {"text": "GitHub Actions Bot"}
               }]
             }')
-          echo "$MESSAGE" | jq .
           curl -H "Content-Type: application/json" -X POST -d "$MESSAGE" $DISCORD_WEBHOOK
-      - name: Send Discord Failure notification
+
+      - name: Send Discord failure notification
         if: failure()
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
-          TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
-          OWNER="${GITHUB_REPOSITORY%%/*}"
-          REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          SITE_URL="https://${OWNER}.github.io/${REPO_NAME}"
-          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          SHA_SHORT=$(echo "${GITHUB_SHA}" | cut -c1-8)
           MESSAGE=$(jq -n \
             --arg title "サイトの更新に失敗しました" \
             --arg site "$SITE_URL" \
@@ -128,5 +123,4 @@ jobs:
                 "footer": {"text": "GitHub Actions Bot"}
               }]
             }')
-          echo "$MESSAGE" | jq .
           curl -H "Content-Type: application/json" -X POST -d "$MESSAGE" $DISCORD_WEBHOOK
