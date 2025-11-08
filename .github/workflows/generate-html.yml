@@ -2,8 +2,8 @@ name: Generate HTML
 
 on:
   schedule:
-    - cron: "0 15 * * *"  # 毎日0時（JST）※UTC 15:00 = JST 00:00
-    - cron: "0 3 * * *"   # 毎日12時（JST）※UTC 03:00 = JST 12:00
+    - cron: "0 15 * * *"  # 毎日0時(JST)※UTC 15:00 = JST 00:00
+    - cron: "0 3 * * *"   # 毎日12時(JST)※UTC 03:00 = JST 12:00
   workflow_dispatch:
 
 permissions:
@@ -38,10 +38,20 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y jq
 
-      - name: Generate HTML
+      - name: Verify data files
         run: |
           set -euo pipefail
+          echo "データファイル確認中..."
+          ls -lh data/ || echo "dataディレクトリが見つかりません"
+          test -f data/history.db || echo "警告: history.dbが存在しません"
+          test -f data/thanks.csv || echo "警告: thanks.csvが存在しません"
+
+      - name: Generate HTML
+        run: |
+          set -euxo pipefail
           python generate.py
+          echo "HTML生成完了"
+          ls -lh index.html
 
       - name: Commit and push changes
         id: commit
@@ -53,6 +63,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add index.html
           if git diff --cached --quiet; then
+            echo "変更なし"
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             git commit -m "Auto-update HTML $(date '+%Y-%m-%d %H:%M')"
@@ -102,7 +113,7 @@ jobs:
         run: |
           set -euo pipefail
           MESSAGE=$(jq -n \
-            --arg title "サイトの更新に失敗しました" \
+            --arg title "⚠️ サイトの更新に失敗しました" \
             --arg site "$SITE_URL" \
             --arg time "$TIMESTAMP" \
             --arg run "$RUN_URL" \
@@ -113,9 +124,10 @@ jobs:
               "embeds": [{
                 "title": $title,
                 "color": ($color | tonumber),
+                "description": "詳細はワークフロー実行ログをご確認ください。",
                 "fields": [
                   {"name": "🔗 サイトのリンク", "value": $site, "inline": false},
-                  {"name": "🧪 ワークフロー実行", "value": $run, "inline": false},
+                  {"name": "🧪 ワークフロー実行", "value": ("[ログを確認](" + $run + ")"), "inline": false},
                   {"name": "🧬 コミット", "value": $sha, "inline": true},
                   {"name": "🕒 失敗検知時刻", "value": $time, "inline": true}
                 ],
