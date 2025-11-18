@@ -15,6 +15,8 @@ THANKS_CSV = "data/thanks.csv"
 VIDEOS_SHEET_EDIT_URL = "https://docs.google.com/spreadsheets/d/161eDUFzWgGW5TCuyzZ3GR3OCEaaNfq-LDWJibdF6Ar4/edit?gid=413704367#gid=413704367"
 # 追加: 歌みた紹介用スプレッドシートURL（編集リンク→CSVエクスポートURLに変換して使用）
 COVERS_SHEET_EDIT_URL = "https://docs.google.com/spreadsheets/d/1Y1mFAj-RHV8VFx9A7w1W1QyJ9-RYxcAW4c2tbF5N_-w/edit?gid=0#gid=0"
+# 追加: 伸びた動画シート用URL
+TRENDING_SHEET_EDIT_URL = "https://docs.google.com/spreadsheets/d/1Y1mFAj-RHV8VFx9A7w1W1QyJ9-RYxcAW4c2tbF5N_-w/edit?gid=1882797807#gid=1882797807"
 
 def get_conn():
     """SQLite データベース接続を取得"""
@@ -207,30 +209,138 @@ def fetch_covers_from_sheet(edit_url: str, top_n: int = 10) -> List[Dict]:
         print(f"歌みた取得に失敗: {e}")
         return []
 
-# 追加: 歌みた紹介セクション生成（横スクロールカルーセル）
-def generate_covers_section(covers: List[Dict]) -> str:
-    if not covers:
-        return """
-<section id='covers' class='section' role='region' aria-labelledby='covers-heading'>
-  <h2 id='covers-heading'><i class="fa-solid fa-hands-bubbles"></i>100万再生まであと少し！</h2>
-  <p class='video-meta'>データを取得できませんでした。</p>
-</section>
-"""
+# 追加: 伸びた動画データの取得
+def fetch_trending_from_sheet(edit_url: str, top_n: int = 10) -> List[Dict]:
+    """
+    Googleスプレッドシートから伸びた動画データを取得（増加数順に上位N件）
+    期待ヘッダー: 動画ID, タイトル, 1週間前再生数, 現在再生数, 増加数, 投稿日, チャンネル
+    """
+    try:
+        parts = edit_url.split("/d/")
+        if len(parts) < 2:
+            return []
+        rest = parts[1]
+        sheet_id = rest.split("/")[0]
+        gid = "0"
+        if "gid=" in edit_url:
+            try:
+                gid = edit_url.split("gid=")[1].split("&")[0].split("#")[0]
+            except:
+                gid = "0"
+        csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+
+        with urllib.request.urlopen(csv_url, timeout=10) as resp:
+            data = resp.read().decode("utf-8", errors="ignore")
+        reader = csv.DictReader(io.StringIO(data))
+        rows = []
+        for row in reader:
+            vid = (row.get("動画ID") or "").strip()
+            title = (row.get("タイトル") or "").strip()
+            increase_raw = (row.get("増加数") or "").strip()
+            current_views_raw = (row.get("現在再生数") or "").strip()
+            date_str = (row.get("投稿日") or "").strip()
+            channel = (row.get("チャンネル") or "").strip()
+            
+            if not vid:
+                continue
+            
+            try:
+                increase = int(increase_raw.replace(",", "").replace("回", "").replace(" ", ""))
+                current_views = int(current_views_raw.replace(",", "").replace("回", "").replace(" ", ""))
+            except:
+                continue
+            
+            rows.append({
+                "video_id": vid,
+                "title": title or "(タイトル不明)",
+                "increase": increase,
+                "current_views": current_views,
+                "date": date_str,
+                "channel": channel
+            })
+        
+        # 増加数降順でソート（既にソート済みだが念のため）
+        rows.sort(key=lambda r: r["increase"], reverse=True)
+        return rows[:top_n]
+    except Exception as e:
+        print(f"伸びた動画取得に失敗: {e}")
+        return []
+
+# 変更: 歌みた紹介セクション生成（横スクロールカルーセル + 伸びた動画を統合）
+def generate_covers_section(covers: List[Dict], trending: List[Dict]) -> str:
     section = """
 <section id='covers' class='section' role='region' aria-labelledby='covers-heading'>
-  <h2 id='covers-heading'><i class='fa-solid fa-hands-bubbles'></i>100万再生まであと少し！</h2>
+  <h2 id='covers-heading'><i class='fa-solid fa-microphone-lines'></i>歌みた紹介</h2>
+"""
+    
+    # 変更: 伸びた動画TOP10を先に表示（期間を動的計算）
+    if trending:
+        # 期間計算（今日-7日～今日-1日）
+        from datetime import datetime, timedelta
+        today = datetime.now()
+        start_date = (today - timedelta(days=7)).strftime("%Y/%m/%d")
+        end_date = (today - timedelta(days=1)).strftime("%Y/%m/%d")
+        
+        section += f"""
+  <h3 class='videos-heading'>
+    <i class='fa-solid fa-chart-line'></i> 伸びた動画TOP10
+  </h3>
+  <p class='video-meta' style='margin-bottom: 16px;'>直近7日間の再生数増加ランキング（{start_date}～{end_date}）</p>
   <div class='videos-carousel-wrapper'>
     <button class='carousel-btn prev' aria-label='前へ'>
       <i class='fa-solid fa-chevron-left'></i>
     </button>
     <div class='videos-carousel'>
 """
-    for v in covers:
-        thumb = f"https://i.ytimg.com/vi/{v['video_id']}/mqdefault.jpg"
-        url = f"https://www.youtube.com/watch?v={v['video_id']}"
-        views_fmt = f"{v['views']:,}"
-        date_part = f"<div class='video-meta'><i class='fa-regular fa-calendar'></i> {v['date']}</div>" if v.get("date") else ""
-        section += f"""
+        for i, v in enumerate(trending, 1):
+            thumb = f"https://i.ytimg.com/vi/{v['video_id']}/mqdefault.jpg"
+            url = f"https://www.youtube.com/watch?v={v['video_id']}"
+            increase_fmt = f"{v['increase']:,}"
+            current_fmt = f"{v['current_views']:,}"
+            date_part = f"<div class='video-meta'><i class='fa-regular fa-calendar'></i> {v['date']}</div>" if v.get("date") else ""
+            channel_part = f"<div class='video-meta'><i class='fa-solid fa-tv'></i> {v['channel']}</div>" if v.get("channel") else ""
+            
+            section += f"""
+      <div class='video-card'>
+        <div class='video-rank'>{i}</div>
+        <a href='{url}' target='_blank' rel='noopener noreferrer' class='video-thumb'>
+          <img src='{thumb}' alt='{v['title']}' loading='lazy'>
+        </a>
+        <div>
+          {date_part}
+          {channel_part}
+          <div class='video-meta'><i class='fa-solid fa-arrow-trend-up'></i> +{increase_fmt} 回</div>
+          <div class='video-meta'><i class='fa-solid fa-eye'></i> {current_fmt} 回</div>
+          <a href='{url}' target='_blank' rel='noopener noreferrer'>{v['title']}</a>
+        </div>
+      </div>
+"""
+        section += """
+    </div>
+    <button class='carousel-btn next' aria-label='次へ'>
+      <i class='fa-solid fa-chevron-right'></i>
+    </button>
+  </div>
+"""
+    
+    # 変更: 100万再生まであと少しを後に表示
+    if covers:
+        section += """
+  <h3 class='videos-heading'>
+    <i class='fa-solid fa-hands-bubbles'></i> 100万再生まであと少し！
+  </h3>
+  <div class='videos-carousel-wrapper'>
+    <button class='carousel-btn prev' aria-label='前へ'>
+      <i class='fa-solid fa-chevron-left'></i>
+    </button>
+    <div class='videos-carousel'>
+"""
+        for v in covers:
+            thumb = f"https://i.ytimg.com/vi/{v['video_id']}/mqdefault.jpg"
+            url = f"https://www.youtube.com/watch?v={v['video_id']}"
+            views_fmt = f"{v['views']:,}"
+            date_part = f"<div class='video-meta'><i class='fa-regular fa-calendar'></i> {v['date']}</div>" if v.get("date") else ""
+            section += f"""
       <div class='video-card'>
         <a href='{url}' target='_blank' rel='noopener noreferrer' class='video-thumb'>
           <img src='{thumb}' alt='{v['title']}' loading='lazy'>
@@ -242,12 +352,18 @@ def generate_covers_section(covers: List[Dict]) -> str:
         </div>
       </div>
 """
-    section += """
+        section += """
     </div>
     <button class='carousel-btn next' aria-label='次へ'>
       <i class='fa-solid fa-chevron-right'></i>
     </button>
   </div>
+"""
+    
+    if not covers and not trending:
+        section += "<p class='video-meta'>データを取得できませんでした。</p>"
+    
+    section += """
 </section>
 """
     return section
@@ -309,6 +425,8 @@ def generate_videos_section(videos_by_category: Dict[str, List[Dict]]) -> str:
 </section>
 """
     return section
+
+# 削除: generate_trending_section関数は不要になったため削除
 
 def generate_html_with_classification_tabs(grouped_records: Dict) -> str:
     """分類ごとのレコードをタブ切り替えで表示する HTML を生成"""
@@ -607,9 +725,10 @@ def generate_html_with_classification_tabs(grouped_records: Dict) -> str:
     videos = fetch_videos_from_sheet(VIDEOS_SHEET_EDIT_URL)
     videos_section = generate_videos_section(videos)
 
-    # 追加: 歌みた紹介セクションを生成
+    # 追加: 歌みた紹介セクションを生成（伸びた動画を内包）
     covers = fetch_covers_from_sheet(COVERS_SHEET_EDIT_URL, top_n=10)
-    covers_section = generate_covers_section(covers)
+    trending = fetch_trending_from_sheet(TRENDING_SHEET_EDIT_URL, top_n=10)
+    covers_section = generate_covers_section(covers, trending)
 
     # フッター追加
     current_time = datetime.now().strftime("%Y年%m月%d日 %H:%M")

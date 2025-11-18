@@ -252,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				});
 			});
 		} else if (sectionId === 'covers') {
-			// 追加: 歌みた紹介表示（切り抜き紹介と同様の挙動）
+			// 歌みた紹介表示（切り抜き紹介と同様の挙動）
 			if (homeSectionEl) homeSectionEl.classList.remove('active');
 			if (tabsContainer) tabsContainer.style.display = 'none';
 			if (searchBarsContainer) searchBarsContainer.style.display = 'none';
