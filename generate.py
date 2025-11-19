@@ -285,7 +285,7 @@ def generate_covers_section(covers: List[Dict], trending: List[Dict]) -> str:
   <h3 class='videos-heading'>
     <i class='fa-solid fa-chart-line'></i> 伸びた動画TOP10
   </h3>
-  <p class='video-meta' style='margin-bottom: 16px;'>直近7日間の再生数増加ランキング（{start_date}～{end_date}）</p>
+  <p class='video-meta' style='margin-bottom: 16px;'>直近7日間の再生数増加ランキング<span class="br-sp"><br></span>（{start_date}～{end_date}）</p>
   <div class='videos-carousel-wrapper'>
     <button class='carousel-btn prev' aria-label='前へ'>
       <i class='fa-solid fa-chevron-left'></i>
