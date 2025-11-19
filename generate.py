@@ -1,21 +1,23 @@
+# はのこと活動記録 - HTML生成スクリプト（Web公開用）
+# - 作業ログ的コメントを整理
+# - 重要な説明のみ簡潔に記述
+# - ロジックは変更なし
+
 import sqlite3
 from typing import List, Dict
 from collections import defaultdict
 import os
 from datetime import datetime
 import csv
-# 追加: GoogleスプレッドシートCSV取得用
 import urllib.request
 import io
 
 DB_FILE = "data/history.db"
 OUTPUT_FILE = "index.html"
 THANKS_CSV = "data/thanks.csv"
-# 変更: 切り抜き紹介用にスプレッドシートURLを追加（シート名：site）
+# スプレッドシート（編集URL → CSVエクスポートURLへ変換）
 VIDEOS_SHEET_EDIT_URL = "https://docs.google.com/spreadsheets/d/161eDUFzWgGW5TCuyzZ3GR3OCEaaNfq-LDWJibdF6Ar4/edit?gid=413704367#gid=413704367"
-# 追加: 歌みた紹介用スプレッドシートURL（編集リンク→CSVエクスポートURLに変換して使用）
 COVERS_SHEET_EDIT_URL = "https://docs.google.com/spreadsheets/d/1Y1mFAj-RHV8VFx9A7w1W1QyJ9-RYxcAW4c2tbF5N_-w/edit?gid=0#gid=0"
-# 追加: 伸びた動画シート用URL
 TRENDING_SHEET_EDIT_URL = "https://docs.google.com/spreadsheets/d/1Y1mFAj-RHV8VFx9A7w1W1QyJ9-RYxcAW4c2tbF5N_-w/edit?gid=1174580202#gid=1174580202"
 
 def get_conn():
@@ -89,17 +91,14 @@ def fetch_thanks_groups(csv_path: str) -> Dict[str, List[str]]:
                     groups[group].append(name)
     return groups
 
-# 追加: Googleスプレッドシートから切り抜き紹介データを取得
 def fetch_videos_from_sheet(edit_url: str) -> Dict[str, List[Dict]]:
     """
     Googleスプレッドシートから切り抜き紹介データを取得（種類ごとに分類）
     期待ヘッダー: video_id, タイトル, 投稿日時, 種類
     """
-    from datetime import datetime
-    
     videos = defaultdict(list)
     try:
-        # 編集URL → CSVエクスポートURLへ（gidを抽出してシート指定）
+        # 編集URL → CSVエクスポートURL
         parts = edit_url.split("/d/")
         if len(parts) < 2:
             return videos
@@ -141,25 +140,21 @@ def fetch_videos_from_sheet(edit_url: str) -> Dict[str, List[Dict]]:
                 "date_obj": date_obj
             })
         
-        # 各カテゴリで日付降順にソート
+        # 各カテゴリを日付降順にソート
         for category in videos:
             videos[category].sort(key=lambda x: x["date_obj"], reverse=True)
-        
     except Exception as e:
         print(f"切り抜き紹介データ取得に失敗: {e}")
-    
     return videos
 
-# 追加: 歌みた（カバー）動画データの取得
 def fetch_covers_from_sheet(edit_url: str, top_n: int = 10) -> List[Dict]:
     """
-    GoogleスプレッドシートからCSVを取得し、
-    「再生数」100万以下で100万に近い順に上位N件を返す。
+    GoogleスプレッドシートCSVから1,000,000回未満の動画を抽出し、
+    100万に近い順に上位N件を返す。
     期待ヘッダー: 動画ID, タイトル, 再生数, 投稿日（存在すれば）
     """
     try:
-        # 編集URL → CSVエクスポートURLへ
-        # 例: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid=0
+        # 編集URL → CSVエクスポートURL
         parts = edit_url.split("/d/")
         if len(parts) < 2:
             return []
@@ -190,7 +185,7 @@ def fetch_covers_from_sheet(edit_url: str, top_n: int = 10) -> List[Dict]:
                 views = int(views_raw.replace(",", "").replace("回", "").replace(" ", ""))
             except:
                 continue
-            # 変更: 100万超は除外
+            # 100万超は除外
             if views > 1_000_000:
                 continue
             rows.append({
@@ -198,24 +193,22 @@ def fetch_covers_from_sheet(edit_url: str, top_n: int = 10) -> List[Dict]:
                 "title": title or "(タイトル不明)",
                 "views": views,
                 "date": date_str,
-                # 変更: 下側の差分（非負）
                 "gap_to_million": 1_000_000 - views
             })
-        # 変更: 差分昇順、同差分は再生数多い順
+        # 差分昇順、同差分は再生数多い順
         rows.sort(key=lambda r: (r["gap_to_million"], -r["views"]))
         return rows[:top_n]
     except Exception as e:
-        # 失敗時は空リスト（標準出力に簡易ログ）
         print(f"歌みた取得に失敗: {e}")
         return []
 
-# 追加: 伸びた動画データの取得
 def fetch_trending_from_sheet(edit_url: str, top_n: int = 10) -> List[Dict]:
     """
     Googleスプレッドシートから伸びた動画データを取得（増加数順に上位N件）
     期待ヘッダー: 動画ID, タイトル, 1週間前再生数, 現在再生数, 増加数, 投稿日, チャンネル
     """
     try:
+        # 編集URL → CSVエクスポートURL
         parts = edit_url.split("/d/")
         if len(parts) < 2:
             return []
@@ -259,21 +252,19 @@ def fetch_trending_from_sheet(edit_url: str, top_n: int = 10) -> List[Dict]:
                 "channel": channel
             })
         
-        # 増加数降順でソート（既にソート済みだが念のため）
+        # 増加数降順でソート
         rows.sort(key=lambda r: r["increase"], reverse=True)
         return rows[:top_n]
     except Exception as e:
         print(f"伸びた動画取得に失敗: {e}")
         return []
 
-# 変更: 歌みた紹介セクション生成（横スクロールカルーセル + 伸びた動画を統合）
 def generate_covers_section(covers: List[Dict], trending: List[Dict]) -> str:
     section = """
 <section id='covers' class='section' role='region' aria-labelledby='covers-heading'>
   <h2 id='covers-heading'><i class='fa-solid fa-microphone-lines'></i>歌みた紹介</h2>
 """
-    
-    # 変更: 伸びた動画TOP10を先に表示（期間を動的計算）
+    # 伸びた動画TOP10（期間は自動算出）
     if trending:
         # 期間計算（今日-7日～今日-1日）
         from datetime import datetime, timedelta
@@ -295,7 +286,6 @@ def generate_covers_section(covers: List[Dict], trending: List[Dict]) -> str:
         for i, v in enumerate(trending, 1):
             thumb = f"https://i.ytimg.com/vi/{v['video_id']}/mqdefault.jpg"
             url = f"https://www.youtube.com/watch?v={v['video_id']}"
-            increase_fmt = f"{v['increase']:,}"
             current_fmt = f"{v['current_views']:,}"
             date_part = f"<div class='video-meta'><i class='fa-regular fa-calendar'></i> {v['date']}</div>" if v.get("date") else ""
             channel_part = f"<div class='video-meta'><i class='fa-solid fa-tv'></i> {v['channel']}</div>" if v.get("channel") else ""
@@ -309,7 +299,6 @@ def generate_covers_section(covers: List[Dict], trending: List[Dict]) -> str:
         <div>
           {date_part}
           {channel_part}
-          <div class='video-meta'><i class='fa-solid fa-arrow-trend-up'></i> +{increase_fmt} 回</div>
           <div class='video-meta'><i class='fa-solid fa-eye'></i> {current_fmt} 回</div>
           <a href='{url}' target='_blank' rel='noopener noreferrer'>{v['title']}</a>
         </div>
@@ -322,8 +311,7 @@ def generate_covers_section(covers: List[Dict], trending: List[Dict]) -> str:
     </button>
   </div>
 """
-    
-    # 変更: 100万再生まであと少しを後に表示
+    # 100万再生まであと少し
     if covers:
         section += """
   <h3 class='videos-heading'>
@@ -359,10 +347,8 @@ def generate_covers_section(covers: List[Dict], trending: List[Dict]) -> str:
     </button>
   </div>
 """
-    
     if not covers and not trending:
         section += "<p class='video-meta'>データを取得できませんでした。</p>"
-    
     section += """
 </section>
 """
@@ -425,8 +411,6 @@ def generate_videos_section(videos_by_category: Dict[str, List[Dict]]) -> str:
 </section>
 """
     return section
-
-# 削除: generate_trending_section関数は不要になったため削除
 
 def generate_html_with_classification_tabs(grouped_records: Dict) -> str:
     """分類ごとのレコードをタブ切り替えで表示する HTML を生成"""

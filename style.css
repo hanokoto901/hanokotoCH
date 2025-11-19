@@ -1,3 +1,9 @@
+/* はのこと活動記録 - Web公開用スタイル
+   - 作業ログ的コメントを整理
+   - 重要な意図のみ簡潔に記述
+   - 機能変更なし（動画ランキング用の最小スタイルのみ追加）
+*/
+
 body {
     font-family: 'Noto Sans JP', sans-serif !important;
     line-height: 1.5;
@@ -280,7 +286,7 @@ table thead th {
     box-shadow: 0 1px 0 0 var(--border-color); /* 下線を追加 */
 }
 table thead th::after {
-    /* 追加: ヘッダーの上部に隙間ができないように */
+    /* 追加: ヘッダーの上部の隙間防止 */
     content: '';
     position: absolute;
     left: 0;
@@ -1575,6 +1581,7 @@ p {
 }
 
 .video-card {
+    position: relative;
     flex: 0 0 260px;
     background: #fff;
     border-radius: 8px;
@@ -1636,6 +1643,25 @@ p {
 }
 .video-card .video-thumb {
     display: block;
+}
+
+/* ランキングバッジ（covers 伸びた動画TOP用） */
+.video-card .video-rank {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(32, 35, 39, 0.9);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    z-index: 1;
 }
 
 /* モーション削減（環境設定に追従） */
