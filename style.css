@@ -2174,11 +2174,14 @@ p {
 /* モバイル最適化（列幅をさらに圧縮） */
 @media (max-width: 600px) {
   #release-songs-grid {
-    grid-template-columns: repeat(auto-fill, 120px);
+    /* 変更: 可変 → 3列固定 */
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
   }
   #release-songs-grid .song-card img {
-    /* そのまま正方形を維持 */
+    /* 正方形維持 */
     aspect-ratio: 1 / 1;
+    height: auto;
+    object-fit: cover;
   }
 }
