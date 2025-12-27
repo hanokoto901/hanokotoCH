@@ -781,14 +781,18 @@ def generate_concert_section(concert_data: List[Dict]) -> str:
         for c in tour["concerts"]:
             active = " active" if c["id"] == first_concert_id else ""
             section += f"      <div id='concert-detail-{c['id']}' class='concert-detail-panel{active}' data-concert-id='{c['id']}'>\n"
-            title_line = f"{c['date']}"
-            if c["name"]:
-                title_line += f" {c['name']}"
-            if c["venue"]:
-                title_line += f" @ <span class='concert-venue'>{c['venue']}</span>"
+            # 変更: タイトルを2ブロックに分割（1行目: 日付＋公演名、2行目: 会場）
+            main_line = f"{c['date']}" + (f" {c['name']}" if c.get("name") else "")
+            venue_html = c.get("venue", "")
             perf_cls = perf_class(c.get("performer", ""))
             perf_dot = f"<span class='perf-dot {perf_cls}' title='{c.get('performer','')}' aria-hidden='true'></span>" if perf_cls else ""
-            section += f"        <h3 class='concert-detail-title'>{perf_dot}{title_line}</h3>\n"
+            section += (
+                "        <h3 class='concert-detail-title'>"
+                f"<span class='concert-title-row'>{perf_dot}<span class='concert-title-main'>{main_line}</span></span>"
+            )
+            if venue_html:
+                section += f"<span class='concert-venue'>{venue_html}</span>"
+            section += "</h3>\n"
             if c["setlist"]:
                 section += "        <ol class='setlist'>\n"
                 for s in c["setlist"]:

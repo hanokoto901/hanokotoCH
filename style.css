@@ -1238,13 +1238,19 @@ p {
     display: none;        /* 矢印を隠してスワイプ操作に一本化 */
   }
 
-  /* ライブ（#concert）: 2カラム→縦並び・リストの固定高さを解除・行レイアウト調整 */
+  /* ライブ（#concert）: 2カラム→縦並び・リストの固定高さを制限して内部スクロール */
   #concert .concert-layout {
     grid-template-columns: 1fr;  /* 縦並びに */
     gap: 12px;
   }
   #concert .concert-list {
-    max-height: none;            /* 固定高さを解除して二重スクロール回避 */
+    /* 変更: 固定高さ解除 → 高さ制限＋内部スクロール */
+    /* fallback */
+    max-height: 420px;
+    /* viewportに応じた柔軟な制限 */
+    max-height: min(60vh, 420px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 8px;
   }
   #concert .concert-item {
@@ -1937,6 +1943,40 @@ p {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+/* 追加: セトリタイトル（PC時は従来の「 @ 会場」表示を維持） */
+.concert-detail-title .concert-venue::before {
+  content: " @ ";
+}
+
+/* セトリタイトルの会場名（スマホ時は2行目に表示） */
+.concert-detail-title .concert-venue {
+    display: inline;
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* 追加: スマホ時はセトリタイトルを2行表示（1行目：日付＋公演名、2行目：会場） */
+@media (max-width: 600px) {
+  #concert .concert-detail-title {
+    display: block;              /* 横並び→縦積み */
+  }
+  #concert .concert-title-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;         /* 1行目は改行させない */
+  }
+  #concert .concert-detail-title .concert-venue {
+    display: block;              /* 2行目として表示 */
+    margin-top: 2px;
+    white-space: normal;
+  }
+  #concert .concert-detail-title .concert-venue::before {
+    content: "";                 /* モバイルでは「 @ 」を消す */
+  }
 }
 
 .concert-detail-panel {
