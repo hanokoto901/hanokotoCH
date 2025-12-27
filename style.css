@@ -1950,18 +1950,19 @@ p {
   content: " @ ";
 }
 
-/* セトリタイトルの会場名（スマホ時は2行目に表示） */
+/* セトリタイトルの会場名（PC時は講演名の隣に配置） */
 .concert-detail-title .concert-venue {
-    display: inline;
-    margin-left: auto;
-    font-size: 14px;
-    color: var(--text-secondary);
+  display: inline;
+  /* 変更: 右端配置をやめて講演名の隣に */
+  /* margin-left: auto; */ /* ← 削除 */
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
-/* 追加: スマホ時はセトリタイトルを2行表示（1行目：日付＋公演名、2行目：会場） */
+/* スマホ時は2行表示 */
 @media (max-width: 600px) {
   #concert .concert-detail-title {
-    display: block;              /* 横並び→縦積み */
+    display: block;
   }
   #concert .concert-title-row {
     display: inline-flex;
@@ -1970,12 +1971,12 @@ p {
     white-space: nowrap;         /* 1行目は改行させない */
   }
   #concert .concert-detail-title .concert-venue {
-    display: block;              /* 2行目として表示 */
+    display: block;
     margin-top: 2px;
     white-space: normal;
   }
   #concert .concert-detail-title .concert-venue::before {
-    content: "";                 /* モバイルでは「 @ 」を消す */
+    content: "";
   }
 }
 
