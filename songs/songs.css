@@ -1,0 +1,205 @@
+:root {
+  --primary: #3498db;
+  --bg-white: #fff;
+  --bg-light: #f6f8fa;
+  --text-primary: #222;
+  --text-secondary: #555;
+  --text-muted: #888;
+  --border: #e6e9ee;
+}
+
+* { box-sizing: border-box; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  margin: 0;
+  background: var(--bg-white);
+  color: var(--text-primary);
+}
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-white);
+  z-index: 10;
+}
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  color: #1f2d3d;
+  text-decoration: none;
+  border-radius: 6px;
+}
+.nav-link:hover { background: var(--bg-light); }
+
+.header-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--primary);
+  color: #fff !important;
+  border-radius: 6px;
+  text-decoration: none !important;
+}
+.header-button.youtube { background: #ff0000; }
+
+.section {
+  max-width: 960px;
+  margin: 16px auto;
+  background: var(--bg-white);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  padding: 16px;
+}
+
+.song-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 8px;
+}
+
+.song-hero {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.song-hero img {
+  width: 100%;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #eee;
+}
+.song-hero-meta .video-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.meta-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 8px 0;
+}
+.meta-label {
+  min-width: 64px;
+  color: var(--text-secondary);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-white);
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-decoration: none; /* 追加: 下線を消す */
+}
+.chip.alt { color: var(--text-primary); border-color: #ddd; }
+.chip.muted { color: var(--text-muted); border-style: dashed; }
+.chip:hover {
+  background: var(--bg-light);
+}
+
+h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  color: #1f2d3d;
+  margin: 16px 0 8px;
+}
+
+.credit-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+}
+.credit-table th, .credit-table td {
+  border: 1px solid #ddd;
+  font-size: 13px;
+  padding: 6px 8px;
+  word-break: break-word; /* 追加: 長いクレジットの折り返し */
+}
+.credit-table th {
+  width: 100px;
+  background: #f4f4f4;
+  text-align: center;
+}
+
+.back-to-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.back-to-top.show { display: flex; }
+.back-to-top:hover { filter: brightness(0.9); }
+
+/* 追加: フッター */
+.site-footer {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--bg-light);
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.site-footer .footer-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.site-footer .footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+.site-footer .footer-links a {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 13px;
+}
+.site-footer .footer-links a:hover {
+  text-decoration: underline;
+}
+.site-footer .footer-copyright {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+  .section { margin: 8px; padding: 12px; }
+  .song-hero { grid-template-columns: 1fr; }
+}

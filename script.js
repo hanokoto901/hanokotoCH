@@ -8,8 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	const tabsContainer = document.querySelector('.tabs');
 	const tabContents = document.querySelectorAll('.tab-content');
 
-	if (!tabs.length) return;
-
 	// インジケーター生成
 	const indicator = document.createElement('div');
 	indicator.className = 'tab-indicator';
@@ -41,7 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
 			const isVisible = i === index;
 			panel.classList.toggle('active', isVisible);
 			panel.setAttribute('aria-hidden', !isVisible);
-			panel.style.display = isVisible ? 'block' : 'none';
+			// 不要なインラインdisplay操作を削除（CSS制御に統一）
+			// panel.style.display = isVisible ? 'block' : 'none';
 		});
 		
 		// タブごとの検索バー表示切替
@@ -87,6 +86,75 @@ document.addEventListener('DOMContentLoaded', () => {
 	if (tabsContainer && tabsContainer.parentNode) {
 		tabsContainer.parentNode.insertBefore(searchBarsContainer, tabsContainer.nextSibling);
 	}
+
+	// 追加: ライブセクション初期化（一覧→詳細切替）
+	let concertInitialized = false;
+	const initConcertSection = () => {
+		if (concertInitialized) return;
+		const concertSection = document.getElementById('concert');
+		if (!concertSection) return;
+
+		const items = concertSection.querySelectorAll('.concert-item');
+		const panels = concertSection.querySelectorAll('.concert-detail-panel');
+
+		// 追加: ツアー開閉初期化（デフォルト閉）
+		const groups = concertSection.querySelectorAll('.concert-group');
+		groups.forEach(g => {
+			g.classList.remove('open');
+			const ul = g.querySelector('.concert-items');
+			if (ul) ul.hidden = true;
+			const btn = g.querySelector('.concert-toggle');
+			if (btn) btn.setAttribute('aria-expanded', 'false');
+		});
+		// 追加: トグルイベント
+		concertSection.querySelectorAll('.concert-toggle').forEach(btn => {
+			btn.addEventListener('click', () => {
+				const group = btn.closest('.concert-group');
+				const ul = group?.querySelector('.concert-items');
+				const expanded = btn.getAttribute('aria-expanded') === 'true';
+				btn.setAttribute('aria-expanded', (!expanded).toString());
+				group?.classList.toggle('open', !expanded);
+				if (ul) ul.hidden = expanded; // 開: false / 閉: true
+			});
+		});
+
+		const activate = (id) => {
+			let found = false;
+			items.forEach(li => {
+				const match = li.dataset.concertId === String(id);
+				li.classList.toggle('active', match);
+				if (match) found = true;
+			});
+			panels.forEach(p => {
+				p.classList.toggle('active', p.dataset.concertId === String(id));
+			});
+			if (!found && items.length) {
+				const firstId = items[0].dataset.concertId;
+				items[0].classList.add('active');
+				concertSection.querySelector(`#concert-detail-${firstId}`)?.classList.add('active');
+			}
+		};
+
+		items.forEach(li => {
+			li.addEventListener('click', () => activate(li.dataset.concertId));
+			li.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					activate(li.dataset.concertId);
+				}
+			});
+		});
+
+		// 既にactiveなパネルがあればそれに同期、なければ先頭を表示
+		const activePanel = concertSection.querySelector('.concert-detail-panel.active');
+		if (activePanel) {
+			activate(activePanel.dataset.concertId);
+		} else if (items.length) {
+			activate(items[0].dataset.concertId);
+		}
+
+		concertInitialized = true;
+	};
 
 	// 検索機能の初期化
 	const initializeSearch = (tabContent, tabIndex) => {
@@ -203,6 +271,18 @@ document.addEventListener('DOMContentLoaded', () => {
 	// アクティブな年表スクロール要素
 	const getActiveTable = () => document.querySelector('.tab-content.active .table-responsive');
 
+	// 共通: カルーセル矢印有効化のための微スクロール（重複削除）
+	const nudgeCarousels = () => {
+		requestAnimationFrame(() => {
+			document.querySelectorAll('.videos-carousel-wrapper .videos-carousel').forEach(c => {
+				if (c.scrollWidth > c.clientWidth) {
+					c.scrollTo({ left: Math.max(2, c.scrollLeft) });
+					c.dispatchEvent(new Event('scroll'));
+				}
+			});
+		});
+	};
+
 	// ナビゲーション表示切替
 	const showSection = (sectionId) => {
 		// メニュー切替時に年表用ボタンを非表示
@@ -222,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		const homeSectionEl = document.querySelector('.home-section');
 		const videosSectionEl = document.getElementById('videos');
-		// 歌みた紹介セクション取得
+		// 歌動画紹介セクション取得
 		const coversSectionEl = document.getElementById('covers');
 
 		if (sectionId === 'home') {
@@ -230,48 +310,94 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (homeSectionEl) homeSectionEl.classList.add('active');
 			if (tabsContainer) tabsContainer.style.display = 'flex';
 			if (searchBarsContainer) searchBarsContainer.style.display = 'block';
-			const current = Array.from(tabs).findIndex(t => t.classList.contains('active'));
-			const idx = current >= 0 ? current : 0;
-			activateTab(idx, { focus: false });
+			// タブが存在する時のみアクティブ化
+			if (tabs.length) {
+				const current = Array.from(tabs).findIndex(t => t.classList.contains('active'));
+				const idx = current >= 0 ? current : 0;
+				activateTab(idx, { focus: false });
+			}
 		} else if (sectionId === 'videos') {
 			// 切り抜き紹介
 			if (homeSectionEl) homeSectionEl.classList.remove('active');
 			if (tabsContainer) tabsContainer.style.display = 'none';
 			if (searchBarsContainer) searchBarsContainer.style.display = 'none';
-			tabContents.forEach(content => content.style.display = 'none');
 			if (videosSectionEl) videosSectionEl.classList.add('active');
 
-			// 表示直後にわずかにスクロールして矢印を有効化
-			requestAnimationFrame(() => {
-				document.querySelectorAll('.videos-carousel-wrapper .videos-carousel').forEach(c => {
-					if (c.scrollWidth > c.clientWidth) {
-						c.scrollTo({ left: Math.max(2, c.scrollLeft) });
-						c.dispatchEvent(new Event('scroll'));
-					}
-				});
-			});
+			nudgeCarousels();
+			initClipsListSection();
 		} else if (sectionId === 'covers') {
-			// 歌みた紹介（切り抜き紹介と同様）
+			// 歌動画紹介（切り抜き紹介と同様）
 			if (homeSectionEl) homeSectionEl.classList.remove('active');
 			if (tabsContainer) tabsContainer.style.display = 'none';
 			if (searchBarsContainer) searchBarsContainer.style.display = 'none';
-			tabContents.forEach(content => content.style.display = 'none');
 			if (coversSectionEl) coversSectionEl.classList.add('active');
 
-			requestAnimationFrame(() => {
-				document.querySelectorAll('.videos-carousel-wrapper .videos-carousel').forEach(c => {
-					if (c.scrollWidth > c.clientWidth) {
-						c.scrollTo({ left: Math.max(2, c.scrollLeft) });
-						c.dispatchEvent(new Event('scroll'));
+			nudgeCarousels();
+			initCoversListSection();
+		} else if (sectionId === 'concert') {
+			// ライブ（左右分割）
+			const homeSectionElLocal = document.querySelector('.home-section');
+			if (homeSectionElLocal) homeSectionElLocal.classList.remove('active');
+			if (tabsContainer) tabsContainer.style.display = 'none';
+			if (searchBarsContainer) searchBarsContainer.style.display = 'none';
+			const concertSection = document.getElementById('concert');
+			if (concertSection) {
+				concertSection.classList.add('active');
+				initConcertSection();
+			}
+		} else if (sectionId === 'music') {
+			// リリース
+			const homeSectionElLocal = document.querySelector('.home-section');
+			if (homeSectionElLocal) homeSectionElLocal.classList.remove('active');
+			if (tabsContainer) tabsContainer.style.display = 'none';
+			if (searchBarsContainer) searchBarsContainer.style.display = 'none';
+			const musicSection = document.getElementById('music');
+			if (musicSection) {
+				musicSection.classList.add('active');
+
+				// 追加: 復元リクエストがある場合、ラジオ初期選択を先に適用
+				const params = new URLSearchParams(location.search);
+				const shouldRestore = params.get('restore') === 'music';
+				if (shouldRestore) {
+					const state = getSavedMusicState();
+					if (state) {
+						const controls = musicSection.querySelector('#release-songs-controls');
+						if (controls) {
+							const singerRadio = controls.querySelector(`input[name="release-singer"][value="${state.singer}"]`);
+							const kindRadio = controls.querySelector(`input[name="release-kind"][value="${state.kind}"]`);
+							if (singerRadio) singerRadio.checked = true;
+							if (kindRadio) kindRadio.checked = true;
+						}
 					}
-				});
-			});
+				}
+
+				nudgeCarousels();           // アルバム/シングルのカルーセル用
+				initReleaseSongsFilters();  // 楽曲フィルター初期化
+
+				// 追加: フィルター適用後にスクロール位置を復元
+				const params2 = new URLSearchParams(location.search);
+				if (params2.get('restore') === 'music') {
+					const state = getSavedMusicState();
+					if (state && typeof state.scrollY === 'number') {
+						requestAnimationFrame(() => {
+							window.scrollTo({ top: state.scrollY, behavior: 'auto' });
+						});
+					}
+					// URLのrestoreパラメータを消しておく（履歴を汚さない）
+					try {
+						const url = new URL(location.href);
+						url.searchParams.delete('restore');
+						history.replaceState({}, '', url.toString());
+					} catch {}
+					// 一度復元したら保存値はクリア
+					clearSavedMusicState();
+				}
+			}
 		} else {
 			// その他セクション
 			if (homeSectionEl) homeSectionEl.classList.remove('active');
 			if (tabsContainer) tabsContainer.style.display = 'none';
 			if (searchBarsContainer) searchBarsContainer.style.display = 'none';
-			tabContents.forEach(content => content.style.display = 'none');
 			const targetSection = document.getElementById(sectionId);
 			if (targetSection) targetSection.classList.add('active');
 		}
@@ -285,8 +411,12 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 	});
 
-	// 初期状態: ホーム
-	showSection('home');
+	// 初期状態: URLのハッシュ/クエリに応じて開始セクションを決定
+	const params = new URLSearchParams(location.search);
+	const initialSection = params.get('restore') === 'music'
+		? 'music'
+		: (location.hash ? location.hash.replace('#', '') : 'home');
+	showSection(initialSection);
 
 	// インジケーター追従（リサイズ・横スクロール）
 	const syncCurrentIndicator = () => {
@@ -328,9 +458,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// 年表のスクロール監視
 	const toggleBackToTableTop = () => {
-		const activeTable = document.querySelector('.tab-content.active .table-responsive');
+		const activeTable = getActiveTable();
 		const tableScroll = activeTable ? activeTable.scrollTop : 0;
-		
 		if (tableScroll > 300) {
 			backToTableTop.classList.add('show');
 		} else {
@@ -439,4 +568,238 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 		});
 	}
+
+	// 追加: 歌動画一覧（ALL）フィルター・ソート初期化
+	let coversListInitialized = false;
+	const initCoversListSection = () => {
+		if (coversListInitialized) return;
+		const coversSection = document.getElementById('covers');
+		if (!coversSection) return;
+		const grid = coversSection.querySelector('#covers-all-grid');
+		if (!grid) return;
+
+		const cards = Array.from(grid.querySelectorAll('.song-card'));
+		const tagGroup = coversSection.querySelector('[role="group"][aria-label="チャンネル種別でフィルター"]');
+		const sortSelect = coversSection.querySelector('.covers-sort-key');
+		// 追加: キーワード検索
+		const searchInput = coversSection.querySelector('.covers-search');
+		const clearBtn = coversSection.querySelector('.covers-search-clear');
+
+		// ラジオボタン群
+		const tagRadios = tagGroup ? Array.from(tagGroup.querySelectorAll('input[type="radio"]')) : [];
+
+		// フィルター: data-tag + キーワード
+		const applyFilter = () => {
+			const tagVal = tagGroup ? (tagGroup.querySelector('input[type="radio"]:checked')?.value || 'all') : 'all';
+			const q = (searchInput?.value || '').trim().toLowerCase();
+
+			cards.forEach(card => {
+				const tagOk = (tagVal === 'all') ? true : ((card.dataset.tag || '') === tagVal);
+				const title = (card.dataset.title || '').toLowerCase();
+				const textOk = !q || title.includes(q);
+				card.style.display = (tagOk && textOk) ? '' : 'none';
+			});
+		};
+
+		// 並び替え（既存のまま）
+		const applySort = () => {
+			if (!sortSelect) return;
+			const val = sortSelect.value;
+			const cmp = (a, b) => {
+				const ad = a.dataset.date ? new Date(a.dataset.date).getTime() : 0;
+				const bd = b.dataset.date ? new Date(b.dataset.date).getTime() : 0;
+				const av = parseInt(a.dataset.views || '0', 10);
+				const bv = parseInt(b.dataset.views || '0', 10);
+				const ap = parseInt(a.dataset.popularity || '0', 10);
+				const bp = parseInt(b.dataset.popularity || '0', 10);
+				switch (val) {
+					case 'date_desc': return bd - ad;
+					case 'date_asc': return ad - bd;
+					case 'views_desc': return bv - av;
+					case 'views_asc': return av - bv;
+					case 'popularity_desc': return bp - ap;
+					default: return 0;
+				}
+			};
+			const visibleCards = cards.filter(c => c.style.display !== 'none');
+			visibleCards.sort(cmp).forEach(c => grid.appendChild(c));
+		};
+
+		// ラベルのactive同期（選択中のみactive）
+		const syncActiveLabels = () => {
+			if (!tagGroup) return;
+			const checked = tagGroup.querySelector('input[type="radio"]:checked');
+			tagGroup.querySelectorAll('label').forEach(label => {
+				label.classList.toggle('active', !!checked && label.contains(checked));
+			});
+		};
+
+		tagRadios.forEach(rb => {
+			rb.addEventListener('change', () => {
+				syncActiveLabels();
+				applyFilter();
+				applySort();
+			});
+		});
+		if (sortSelect) sortSelect.addEventListener('change', applySort);
+
+		// 追加: 検索イベント
+		const toggleClear = () => {
+			if (clearBtn) clearBtn.classList.toggle('show', !!searchInput?.value.trim());
+		};
+		if (searchInput) searchInput.addEventListener('input', () => { toggleClear(); applyFilter(); });
+		if (clearBtn) clearBtn.addEventListener('click', () => {
+			if (!searchInput) return;
+			searchInput.value = '';
+			toggleClear();
+			applyFilter();
+			searchInput.focus();
+		});
+
+		// 初期同期
+		syncActiveLabels();
+		applyFilter();
+		applySort();
+		toggleClear();
+
+		coversListInitialized = true;
+	};
+
+	// 追加: リリース楽曲一覧（歌唱・種別・キーワードフィルター）
+	let releaseSongsInitialized = false;
+	const initReleaseSongsFilters = () => {
+		if (releaseSongsInitialized) return;
+		const musicSection = document.getElementById('music');
+		if (!musicSection) return;
+		const grid = musicSection.querySelector('#release-songs-grid');
+		const controls = musicSection.querySelector('#release-songs-controls');
+		if (!grid || !controls) return;
+
+		const cards = Array.from(grid.querySelectorAll('.song-card'));
+		const singerGroup = controls.querySelector('[role="group"][aria-label="歌唱でフィルター"]');
+		const kindGroup = controls.querySelector('[role="group"][aria-label="種別でフィルター"]');
+		// 追加: キーワード検索
+		const searchInput = controls.querySelector('.release-search');
+		const clearBtn = controls.querySelector('.release-search-clear');
+
+		// ラジオボタン群
+		const singerRadios = singerGroup ? Array.from(singerGroup.querySelectorAll('input[type="radio"]')) : [];
+		const kindRadios = kindGroup ? Array.from(kindGroup.querySelectorAll('input[type="radio"]')) : [];
+
+		const applyFilter = () => {
+			const singerVal = singerGroup ? (singerGroup.querySelector('input[type="radio"]:checked')?.value || 'all') : 'all';
+			const kindVal = kindGroup ? (kindGroup.querySelector('input[type="radio"]:checked')?.value || 'all') : 'all';
+			const q = (searchInput?.value || '').trim().toLowerCase();
+
+			cards.forEach(card => {
+				const hasUnit = card.dataset.unit === '1';
+				const hasHanon = card.dataset.hanon === '1';
+				const hasKotoha = card.dataset.kotoha === '1';
+
+				let singerMatch = true;
+				if (singerVal !== 'all') {
+					if (singerVal === 'unit') singerMatch = hasUnit || (hasHanon && hasKotoha);
+					else if (singerVal === 'hanon') singerMatch = hasHanon;
+					else if (singerVal === 'kotoha') singerMatch = hasKotoha;
+				}
+
+				const kindCode = card.dataset.kind || 'other';
+				const kindMatch = (kindVal === 'all') ? true : (kindCode === kindVal);
+
+				const title = (card.dataset.title || '').toLowerCase();
+				const textMatch = !q || title.includes(q);
+
+				card.style.display = (singerMatch && kindMatch && textMatch) ? '' : 'none';
+			});
+		};
+
+		// ラベルのactive同期（選択中のみactive）
+		const syncActiveLabels = () => {
+			[singerGroup, kindGroup].forEach(group => {
+				if (!group) return;
+				const checked = group.querySelector('input[type="radio"]:checked');
+				group.querySelectorAll('label').forEach(label => {
+					label.classList.toggle('active', !!checked && label.contains(checked));
+				});
+			});
+		};
+
+		[...singerRadios, ...kindRadios].forEach(rb => {
+			rb.addEventListener('change', () => {
+				syncActiveLabels();
+				applyFilter();
+			});
+		});
+
+		// 追加: 検索イベント
+		const toggleClear = () => {
+			if (clearBtn) clearBtn.classList.toggle('show', !!searchInput?.value.trim());
+		};
+		if (searchInput) searchInput.addEventListener('input', () => { toggleClear(); applyFilter(); });
+		if (clearBtn) clearBtn.addEventListener('click', () => {
+			if (!searchInput) return;
+			searchInput.value = '';
+			toggleClear();
+			applyFilter();
+			searchInput.focus();
+		});
+
+		// 初期同期
+		syncActiveLabels();
+		applyFilter();
+		toggleClear();
+
+		releaseSongsInitialized = true;
+	};
+
+	// 追加: リリースセクションの状態保存/復元
+	const MUSIC_STATE_KEY = 'musicState';
+
+	const saveMusicState = () => {
+		const musicSection = document.getElementById('music');
+		if (!musicSection) return;
+		const controls = musicSection.querySelector('#release-songs-controls');
+		if (!controls) return;
+		const singer = controls.querySelector('input[name="release-singer"]:checked')?.value || 'all';
+		const kind = controls.querySelector('input[name="release-kind"]:checked')?.value || 'all';
+		const scrollY = window.scrollY || 0;
+		const state = { singer, kind, scrollY };
+		try {
+			sessionStorage.setItem(MUSIC_STATE_KEY, JSON.stringify(state));
+		} catch {}
+	};
+
+	const getSavedMusicState = () => {
+		try {
+			const raw = sessionStorage.getItem(MUSIC_STATE_KEY);
+			return raw ? JSON.parse(raw) : null;
+		} catch {
+			return null;
+		}
+	};
+
+	const clearSavedMusicState = () => {
+		try { sessionStorage.removeItem(MUSIC_STATE_KEY); } catch {}
+	};
+
+	// 楽曲/アルバム/シングル詳細へ遷移する直前に状態保存（イベント委譲）
+	const attachMusicStateSavers = () => {
+		const musicSection = document.getElementById('music');
+		if (!musicSection) return;
+		musicSection.addEventListener('click', (e) => {
+			const a = e.target.closest('a');
+			if (!a) return;
+			const href = a.getAttribute('href') || '';
+			// songs/ または CDs/ に遷移するリンクのみ保存
+			if (href.startsWith('songs/') || href.startsWith('CDs/')) {
+				saveMusicState();
+			}
+		});
+	};
+
+	// 初期化
+	initCoversListSection();
+	initClipsListSection();
+	initReleaseSongsFilters();
+	attachMusicStateSavers(); // 追加: 遷移前に状態を保存
 });
