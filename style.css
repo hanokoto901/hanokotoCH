@@ -1183,6 +1183,80 @@ p {
     }
 }
 
+/* 追加: セクション別モバイル最適化（PCは従来どおり） */
+@media (max-width: 600px) {
+  /* リリース（#music）: スワイプ優先・カード圧縮 */
+  #music .videos-carousel {
+    gap: 12px;            /* 間隔を少し圧縮 */
+    padding: 8px 0;
+  }
+  #music .carousel-btn {
+    display: none;        /* 矢印を隠してスワイプ操作に一本化（PCは影響なし） */
+  }
+  #music .video-card {
+    flex: 0 0 200px;      /* モバイルだけ少し狭く */
+  }
+  #music .video-card img {
+    height: 110px;        /* サムネイル高さを調整 */
+  }
+  /* リリース曲フィルターを縦並び＆全幅化 */
+  #music #release-songs-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  #music #release-songs-controls .filter-group,
+  #music #release-songs-controls .search-group {
+    width: 100%;
+  }
+  #music #release-songs-controls .list-search {
+    width: 100%;
+  }
+
+  /* 歌動画（#covers）: フィルター縦並び・入力／選択全幅化・矢印非表示 */
+  #covers .covers-controls,
+  #covers .list-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  #covers .filter-group,
+  #covers .sort-group,
+  #covers .search-group {
+    width: 100%;
+  }
+  #covers .covers-sort-key,
+  #covers .clips-sort-key,
+  #covers .list-search {
+    width: 100%;
+  }
+  #covers .videos-carousel {
+    gap: 12px;
+    padding: 8px 0;
+  }
+  #covers .carousel-btn {
+    display: none;        /* 矢印を隠してスワイプ操作に一本化 */
+  }
+
+  /* ライブ（#concert）: 2カラム→縦並び・リストの固定高さを解除・行レイアウト調整 */
+  #concert .concert-layout {
+    grid-template-columns: 1fr;  /* 縦並びに */
+    gap: 12px;
+  }
+  #concert .concert-list {
+    max-height: none;            /* 固定高さを解除して二重スクロール回避 */
+    padding: 8px;
+  }
+  #concert .concert-item {
+    grid-template-columns: 100px minmax(0, 1fr); /* 左列をコンパクトに */
+    padding: 6px;
+  }
+  #concert .concert-detail {
+    min-height: 0;               /* 余計な余白を削減 */
+    padding: 10px;
+  }
+}
+
 /* 一覧検索（リリース曲/歌動画） */
 .list-controls .search-group {
   margin-left: auto;
