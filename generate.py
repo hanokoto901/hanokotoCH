@@ -1078,7 +1078,7 @@ def generate_html_with_classification_tabs(grouped_records: Dict) -> str:
       <div class='notice-title'>
         <i class='fa-solid fa-flask'></i> このサイトはβ版です
       </div>
-      <p class='notice-text'>サイトの改善に向けてアンケートを実施しています。ご協力いただいた方のお名前（ご希望の方のみ）は<strong>Thanksページ</strong>に掲載させていただきます。<br>また、<strong>年表</strong>や<strong>一部ライブ</strong>のセトリの入力が終わっていませんのでご注意ください。<br></p>
+      <p class='notice-text'>サイトの改善に向けてアンケートを実施しています。ご協力いただいた方のお名前（ご希望の方のみ）は<strong>Thanksページ</strong>に掲載させていただきます。<br><br><strong>年表</strong>や<strong>一部ライブ</strong>のセトリの入力が終わっていませんのでご注意ください。<br></p>
       <a href='https://docs.google.com/forms/d/e/1FAIpQLSfw4X07SbSNHFhH0NzdOS8S7BHTFsmAt9LtLw0Ij1ihuhWvUg/viewform?usp=preview' target='_blank' rel='noopener noreferrer' class='notice-link'>
         <i class='fa-brands fa-wpforms'></i> アンケートに回答する
       </a>
