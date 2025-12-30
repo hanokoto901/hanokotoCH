@@ -665,6 +665,80 @@ document.addEventListener('DOMContentLoaded', () => {
 		coversListInitialized = true;
 	};
 
+	// 追加: 切り抜き(非公式)一覧（ALL）フィルター・ソート初期化
+	let clipsListInitialized = false;
+	const initClipsListSection = () => {
+		if (clipsListInitialized) return;
+		const videosSection = document.getElementById('videos');
+		if (!videosSection) return;
+
+		const grid = videosSection.querySelector('#clips-all-grid');
+		if (!grid) return;
+
+		const cards = Array.from(grid.querySelectorAll('.song-card'));
+		const tagGroup = videosSection.querySelector('[role="group"][aria-label="種類でフィルター"]');
+		const sortSelect = videosSection.querySelector('.clips-sort-key');
+
+		const tagRadios = tagGroup ? Array.from(tagGroup.querySelectorAll('input[type="radio"]')) : [];
+
+		// カテゴリフィルター
+		const applyFilter = () => {
+			const tagVal = tagGroup ? (tagGroup.querySelector('input[type="radio"]:checked')?.value || 'all') : 'all';
+			cards.forEach(card => {
+				const cat = card.dataset.cat || 'other';
+				const show = (tagVal === 'all') ? true : (cat === tagVal);
+				card.style.display = show ? '' : 'none';
+			});
+		};
+
+		// 日付ソート（表示中カードのみ）
+		const applySort = () => {
+			if (!sortSelect) return;
+			const val = sortSelect.value;
+			const visibleCards = cards.filter(c => c.style.display !== 'none');
+			const toTime = (c) => {
+				const s = c.dataset.date || '';
+				const t = Date.parse(s);
+				return Number.isNaN(t) ? 0 : t;
+			};
+			visibleCards.sort((a, b) => {
+				const ad = toTime(a);
+				const bd = toTime(b);
+				if (val === 'date_asc') return ad - bd;
+				// default: date_desc
+				return bd - ad;
+			}).forEach(c => grid.appendChild(c));
+		};
+
+		// ラベルactive同期
+		const syncActiveLabels = () => {
+			if (!tagGroup) return;
+			const checked = tagGroup.querySelector('input[type="radio"]:checked');
+			tagGroup.querySelectorAll('label').forEach(label => {
+				label.classList.toggle('active', !!checked && label.contains(checked));
+			});
+		};
+
+		// イベント
+		tagRadios.forEach(rb => {
+			rb.addEventListener('change', () => {
+				syncActiveLabels();
+				applyFilter();
+				applySort();
+			});
+		});
+		if (sortSelect) {
+			sortSelect.addEventListener('change', applySort);
+		}
+
+		// 初期適用
+		syncActiveLabels();
+		applyFilter();
+		applySort();
+
+		clipsListInitialized = true;
+	};
+
 	// 追加: リリース楽曲一覧（歌唱・種別・キーワードフィルター）
 	let releaseSongsInitialized = false;
 	const initReleaseSongsFilters = () => {
