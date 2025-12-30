@@ -33,7 +33,6 @@ jobs:
         run: |
           set -euo pipefail
           pip install --upgrade pip
-          pip install requests
           sudo apt-get update -y
           sudo apt-get install -y jq
 
@@ -44,6 +43,7 @@ jobs:
           ls -lh data/ || echo "dataディレクトリが見つかりません"
           test -f data/history.db || echo "警告: history.dbが存在しません"
           test -f data/thanks.csv || echo "警告: thanks.csvが存在しません"
+          test -f X_concert.db || echo "注意: X_concert.dbが存在しません（ライブ情報は空になります）"
 
       - name: Generate HTML
         run: |
