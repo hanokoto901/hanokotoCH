@@ -505,8 +505,8 @@ def generate_music_section(albums: List[Dict]) -> str:
     section_parts.append("</section>\n")
     return "".join(section_parts)
 
-# 追加: 歌動画セクション（TOP10/100万直前/ALL一覧）
-def generate_covers_section(covers: List[Dict], trending: List[Dict], covers_all: List[Dict]) -> str:
+# 追加: 歌動画セクション（TOP10/ALL一覧）
+def generate_covers_section(trending: List[Dict], covers_all: List[Dict]) -> str:
     section = """
 <section id='covers' class='section' role='region' aria-labelledby='covers-heading'>
   <h2 id='covers-heading'><i class='fa-solid fa-microphone-lines'></i>歌動画</h2>
@@ -544,44 +544,6 @@ def generate_covers_section(covers: List[Dict], trending: List[Dict], covers_all
           {date_part}
           {channel_part}
           <div class='video-meta'><i class='fa-solid fa-eye'></i> {current_fmt} 回</div>
-          <a href='{url}' target='_blank' rel='noopener noreferrer'>{v['title']}</a>
-        </div>
-      </div>
-""")
-        section += "".join(cards) + """
-    </div>
-    <button class='carousel-btn next' aria-label='次へ'>
-      <i class='fa-solid fa-chevron-right'></i>
-    </button>
-  </div>
-"""
-
-    # 100万再生まであと少し
-    if covers:
-        section += """
-  <h3 class='videos-heading'>
-    <i class='fa-solid fa-hands-bubbles'></i> 100万再生まであと少し！
-  </h3>
-  <div class='videos-carousel-wrapper'>
-    <button class='carousel-btn prev' aria-label='前へ'>
-      <i class='fa-solid fa-chevron-left'></i>
-    </button>
-    <div class='videos-carousel'>
-"""
-        cards = []
-        for v in covers:
-            thumb = f"https://i.ytimg.com/vi/{v['video_id']}/mqdefault.jpg"
-            url = f"https://www.youtube.com/watch?v={v['video_id']}"
-            views_fmt = f"{v['views']:,}"
-            date_part = f"<div class='video-meta'><i class='fa-regular fa-calendar'></i> {v.get('date','')}</div>" if v.get("date") else ""
-            cards.append(f"""
-      <div class='video-card'>
-        <a href='{url}' target='_blank' rel='noopener noreferrer' class='video-thumb'>
-          <img src='{thumb}' alt='{v['title']}' loading='lazy'>
-        </a>
-        <div>
-          {date_part}
-          <div class='video-meta'><i class='fa-solid fa-eye'></i> {views_fmt} 回</div>
           <a href='{url}' target='_blank' rel='noopener noreferrer'>{v['title']}</a>
         </div>
       </div>
@@ -1145,10 +1107,9 @@ def generate_html_with_classification_tabs(grouped_records: Dict) -> str:
     albums = fetch_albums_from_sheet(ALBUMS_SHEET_EDIT_URL)
     music_section = generate_music_section(albums)
     # 歌動画
-    covers = fetch_covers_from_sheet(COVERS_SHEET_EDIT_URL, top_n=10)
     trending = fetch_trending_from_sheet(TRENDING_SHEET_EDIT_URL, top_n=None)
     covers_all = fetch_covers_all_from_sheet(COVERS_ALL_SHEET_EDIT_URL)
-    covers_section = generate_covers_section(covers, trending, covers_all)
+    covers_section = generate_covers_section(trending, covers_all)
     # 切り抜き(非公式)
     videos = fetch_videos_from_sheet(VIDEOS_SHEET_EDIT_URL)
     videos_section = generate_videos_section(videos)
