@@ -168,7 +168,10 @@ def cd_image(key: str, prefix: str = "") -> str:
     thumb = os.path.join(CD_THUMB_DIR, f"{key}.webp")
     if os.path.exists(src):
         try:
-            if not os.path.exists(thumb) or os.path.getmtime(thumb) < os.path.getmtime(src):
+            # GitHub Actions 上ではチェックアウト時に更新日時がそろわないため、縮小版が無いときだけ作る
+            outdated = not os.environ.get("CI") and os.path.getmtime(thumb) < os.path.getmtime(src) \
+                if os.path.exists(thumb) else True
+            if outdated:
                 from PIL import Image  # Pillow が無い環境では元のPNGを使う
                 os.makedirs(CD_THUMB_DIR, exist_ok=True)
                 with Image.open(src) as im:
