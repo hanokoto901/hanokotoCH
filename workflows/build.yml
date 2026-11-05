@@ -1,0 +1,65 @@
+
+name: Run build.py
+
+on:
+  schedule:
+    - cron: '0 16 * * *'
+
+  workflow_dispatch:
+
+  repository_dispatch:
+    types: [google_form_submit]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run build.py
+        id: build
+        run: python build.py
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          BUILD_STATUS: ${{ steps.build.outcome }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$BUILD_STATUS" = "success" ]; then
+            STATUS="✅ 更新完了"
+          else
+            STATUS="❌ 更新失敗"
+          fi
+
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            TRIGGER="Googleフォーム"
+          elif [ "$EVENT_NAME" = "schedule" ]; then
+            TRIGGER="定期実行"
+          else
+            TRIGGER="手動実行"
+          fi
+
+          MESSAGE=$(jq -n \
+            --arg status "$STATUS" \
+            --arg trigger "$TRIGGER" \
+            --arg url "$RUN_URL" \
+            '{content: ($status + "\n実行方法：" + $trigger + "\n詳細：" + $url)}')
+
+          curl --fail-with-body -sS \
+            -H "Content-Type: application/json" \
+            -d "$MESSAGE" \
+            "$DISCORD_WEBHOOK"
