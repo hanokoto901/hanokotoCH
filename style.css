@@ -1222,7 +1222,9 @@ p {
   }
   #covers .filter-group,
   #covers .sort-group,
-  #covers .search-group {
+  #covers .search-group,
+  #videos .search-group,
+  #videos .list-search {
     width: 100%;
   }
   #covers .covers-sort-key,

@@ -1,6 +1,9 @@
 // はのこと活動記録 - Web公開用スクリプト
 // コメントを簡潔化（作業ログ的コメントを整理）
 
+// 検索用の文字列正規化（全角/半角の英数字・記号を揃え、大文字小文字を区別しない）
+const normalizeText = (s) => (s || '').normalize('NFKC').toLowerCase();
+
 document.addEventListener('DOMContentLoaded', () => {
 	const tabs = document.querySelectorAll('.tab');
 	const navLinks = document.querySelectorAll('.nav-link');
@@ -179,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		// 年グループ処理（rowspan対応）
 		const processYearGroup = (rows, keyword) => {
 			const hasMatch = rows.some(row => 
-				!keyword || row.textContent.toLowerCase().includes(keyword)
+				!keyword || normalizeText(row.textContent).includes(keyword)
 			);
 
 			rows.forEach(row => {
@@ -187,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				
 				if (hasMatch && keyword) {
 					Array.from(row.cells).forEach(cell => {
-						const match = cell.textContent.toLowerCase().includes(keyword);
+						const match = normalizeText(cell.textContent).includes(keyword);
 						cell.classList.toggle('timeline-highlight', match);
 					});
 				} else {
@@ -200,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		// 行フィルタリング
 		const filterRows = () => {
-			const keyword = input.value.trim().toLowerCase();
+			const keyword = normalizeText(input.value.trim());
 			if (!tbody) return;
 
 			// 前回の「該当なし」メッセージを削除
@@ -271,16 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
 	// アクティブな年表スクロール要素
 	const getActiveTable = () => document.querySelector('.tab-content.active .table-responsive');
 
-	// 共通: カルーセル矢印有効化のための微スクロール（重複削除）
+	// 共通: 非表示だったカルーセルが表示されたときに矢印の有効/無効を再計算
 	const nudgeCarousels = () => {
-		requestAnimationFrame(() => {
-			document.querySelectorAll('.videos-carousel-wrapper .videos-carousel').forEach(c => {
-				if (c.scrollWidth > c.clientWidth) {
-					c.scrollTo({ left: Math.max(2, c.scrollLeft) });
-					c.dispatchEvent(new Event('scroll'));
-				}
-			});
+		const refresh = () => document.querySelectorAll('.videos-carousel-wrapper .videos-carousel').forEach(c => {
+			c.dispatchEvent(new Event('scroll'));
 		});
+		refresh();                         // 表示直後に即時計算
+		requestAnimationFrame(refresh);    // 画像読み込み等でレイアウトが変わった場合に備えて再計算
 	};
 
 	// ナビゲーション表示切替
@@ -365,8 +365,12 @@ document.addEventListener('DOMContentLoaded', () => {
 						if (controls) {
 							const singerRadio = controls.querySelector(`input[name="release-singer"][value="${state.singer}"]`);
 							const kindRadio = controls.querySelector(`input[name="release-kind"][value="${state.kind}"]`);
-							if (singerRadio) singerRadio.checked = true;
-							if (kindRadio) kindRadio.checked = true;
+							// change を発火して、初期化済みのフィルターにも反映させる
+							[singerRadio, kindRadio].forEach(rb => {
+								if (!rb) return;
+								rb.checked = true;
+								rb.dispatchEvent(new Event('change'));
+							});
 						}
 					}
 				}
@@ -387,6 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
 					try {
 						const url = new URL(location.href);
 						url.searchParams.delete('restore');
+						url.hash = 'music';
 						history.replaceState({}, '', url.toString());
 					} catch {}
 					// 一度復元したら保存値はクリア
@@ -403,20 +408,28 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	};
 
+	// URLのハッシュ（#music など）から表示するセクションを決める。存在しない値ならホーム
+	const validSections = new Set(Array.from(navLinks).map(link => link.dataset.section));
+	const sectionFromHash = () => {
+		const id = decodeURIComponent(location.hash.replace('#', ''));
+		return validSections.has(id) ? id : 'home';
+	};
+
 	navLinks.forEach(link => {
 		link.addEventListener('click', (e) => {
 			e.preventDefault();
 			const sectionId = link.dataset.section;
+			// URLにも反映（再読み込み・戻るボタン・URL共有で同じセクションを開けるように）
+			if (location.hash !== '#' + sectionId) {
+				history.pushState(null, '', '#' + sectionId);
+			}
 			showSection(sectionId);
 		});
 	});
 
-	// 初期状態: URLのハッシュ/クエリに応じて開始セクションを決定
-	const params = new URLSearchParams(location.search);
-	const initialSection = params.get('restore') === 'music'
-		? 'music'
-		: (location.hash ? location.hash.replace('#', '') : 'home');
-	showSection(initialSection);
+	// ブラウザの戻る/進む・URLのハッシュ手入力に追従
+	window.addEventListener('hashchange', () => showSection(sectionFromHash()));
+	// ※初期セクションの表示は、showSection が使う関数がすべて定義された後（このファイルの末尾）で行う
 
 	// インジケーター追従（リサイズ・横スクロール）
 	const syncCurrentIndicator = () => {
@@ -514,14 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		carousel.addEventListener('scroll', updateButtons);
 		window.addEventListener('resize', updateButtons);
 		updateButtons(); // 初期状態を設定
-
-		// 初期化直後にわずかにスクロールして前へボタンを有効化
-		requestAnimationFrame(() => {
-			if (carousel.scrollWidth > carousel.clientWidth) {
-				carousel.scrollTo({ left: 2 });
-				updateButtons();
-			}
-		});
 	});
 
 	// ハンバーガーメニュー（モバイル）
@@ -591,11 +596,11 @@ document.addEventListener('DOMContentLoaded', () => {
 		// フィルター: data-tag + キーワード
 		const applyFilter = () => {
 			const tagVal = tagGroup ? (tagGroup.querySelector('input[type="radio"]:checked')?.value || 'all') : 'all';
-			const q = (searchInput?.value || '').trim().toLowerCase();
+			const q = normalizeText((searchInput?.value || '').trim());
 
 			cards.forEach(card => {
 				const tagOk = (tagVal === 'all') ? true : ((card.dataset.tag || '') === tagVal);
-				const title = (card.dataset.title || '').toLowerCase();
+				const title = normalizeText(card.dataset.title);
 				const textOk = !q || title.includes(q);
 				card.style.display = (tagOk && textOk) ? '' : 'none';
 			});
@@ -678,18 +683,35 @@ document.addEventListener('DOMContentLoaded', () => {
 		const cards = Array.from(grid.querySelectorAll('.song-card'));
 		const tagGroup = videosSection.querySelector('[role="group"][aria-label="種類でフィルター"]');
 		const sortSelect = videosSection.querySelector('.clips-sort-key');
+		const searchInput = videosSection.querySelector('.clips-search');
+		const clearBtn = videosSection.querySelector('.clips-search-clear');
 
 		const tagRadios = tagGroup ? Array.from(tagGroup.querySelectorAll('input[type="radio"]')) : [];
 
-		// カテゴリフィルター
+		// カテゴリ＋キーワードフィルター
 		const applyFilter = () => {
 			const tagVal = tagGroup ? (tagGroup.querySelector('input[type="radio"]:checked')?.value || 'all') : 'all';
+			const q = normalizeText((searchInput?.value || '').trim());
 			cards.forEach(card => {
 				const cat = card.dataset.cat || 'other';
-				const show = (tagVal === 'all') ? true : (cat === tagVal);
-				card.style.display = show ? '' : 'none';
+				const catOk = (tagVal === 'all') ? true : (cat === tagVal);
+				const textOk = !q || normalizeText(card.dataset.title).includes(q);
+				card.style.display = (catOk && textOk) ? '' : 'none';
 			});
 		};
+
+		// 検索イベント
+		const toggleClear = () => {
+			if (clearBtn) clearBtn.classList.toggle('show', !!searchInput?.value.trim());
+		};
+		if (searchInput) searchInput.addEventListener('input', () => { toggleClear(); applyFilter(); });
+		if (clearBtn) clearBtn.addEventListener('click', () => {
+			if (!searchInput) return;
+			searchInput.value = '';
+			toggleClear();
+			applyFilter();
+			searchInput.focus();
+		});
 
 		// 日付ソート（表示中カードのみ）
 		const applySort = () => {
@@ -763,7 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		const applyFilter = () => {
 			const singerVal = singerGroup ? (singerGroup.querySelector('input[type="radio"]:checked')?.value || 'all') : 'all';
 			const kindVal = kindGroup ? (kindGroup.querySelector('input[type="radio"]:checked')?.value || 'all') : 'all';
-			const q = (searchInput?.value || '').trim().toLowerCase();
+			const q = normalizeText((searchInput?.value || '').trim());
 
 			cards.forEach(card => {
 				const hasUnit = card.dataset.unit === '1';
@@ -780,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				const kindCode = card.dataset.kind || 'other';
 				const kindMatch = (kindVal === 'all') ? true : (kindCode === kindVal);
 
-				const title = (card.dataset.title || '').toLowerCase();
+				const title = normalizeText(card.dataset.title);
 				const textMatch = !q || title.includes(q);
 
 				card.style.display = (singerMatch && kindMatch && textMatch) ? '' : 'none';
@@ -876,4 +898,8 @@ document.addEventListener('DOMContentLoaded', () => {
 	initClipsListSection();
 	initReleaseSongsFilters();
 	attachMusicStateSavers(); // 追加: 遷移前に状態を保存
+
+	// 初期状態: URLのハッシュ/クエリに応じて開始セクションを決定
+	const initialParams = new URLSearchParams(location.search);
+	showSection(initialParams.get('restore') === 'music' ? 'music' : sectionFromHash());
 });
