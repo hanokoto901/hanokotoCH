@@ -1,5 +1,7 @@
+/* 曲ページ（songs/）・CDページ（CDs/）共通スタイル */
 :root {
   --primary: #3498db;
+  --primary-hover: #217dbb;
   --bg-white: #fff;
   --bg-light: #f6f8fa;
   --text-primary: #222;
@@ -85,7 +87,13 @@ body {
 .song-hero-meta .video-meta {
   font-size: 13px;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.album-comment {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 6px 0;
 }
 
 .meta-row {
@@ -95,7 +103,7 @@ body {
   margin: 8px 0;
 }
 .meta-label {
-  min-width: 64px;
+  min-width: 72px;
   color: var(--text-secondary);
 }
 .chips {
@@ -112,7 +120,7 @@ body {
   background: var(--bg-white);
   color: var(--text-secondary);
   font-size: 13px;
-  text-decoration: none; /* 追加: 下線を消す */
+  text-decoration: none;
 }
 .chip.alt { color: var(--text-primary); border-color: #ddd; }
 .chip.muted { color: var(--text-muted); border-style: dashed; }
@@ -129,6 +137,7 @@ h3 {
   margin: 16px 0 8px;
 }
 
+/* クレジット（曲ページ） */
 .credit-table {
   width: 100%;
   border-collapse: collapse;
@@ -138,12 +147,44 @@ h3 {
   border: 1px solid #ddd;
   font-size: 13px;
   padding: 6px 8px;
-  word-break: break-word; /* 追加: 長いクレジットの折り返し */
+  word-break: break-word;
 }
 .credit-table th {
   width: 100px;
   background: #f4f4f4;
   text-align: center;
+}
+.page-song .song-hero-meta .video-meta { margin-bottom: 4px; }
+.page-song .meta-label { min-width: 64px; }
+
+/* 収録曲（CDページ） */
+.tracks {
+  margin: 8px 0 12px 20px;
+  padding: 0;
+}
+.tracks li {
+  margin: 4px 0;
+}
+.tracks a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+.tracks a:hover {
+  text-decoration: underline;
+  color: var(--primary-hover);
+}
+
+/* 説明（非ボックス＋小さめ） */
+.desc-note {
+  background: transparent;      /* ボックス背景を撤去 */
+  border: none;                 /* 枠線を撤去 */
+  border-left: none;            /* 左線も撤去 */
+  padding: 0;                   /* 余白を撤去 */
+  margin: 8px 0 0;              /* 一言の直下に適度な余白 */
+  font-size: 13px;              /* 文字サイズを拡大 */
+  line-height: 1.6;             /* 行間を広めに */
+  color: var(--text-primary);   /* 本文色に合わせる */
 }
 
 .back-to-top {
